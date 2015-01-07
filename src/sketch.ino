@@ -1,6 +1,8 @@
 #include "Adafruit_NeoPixel.h"
+#include "Adafruit_LSM9DS0.h"
+#include "Adafruit_Sensor.h"
 
-#define PIN 2
+#define PIN 13
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
@@ -10,15 +12,48 @@
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(60, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0();  // i2c sensor
 
+sensors_event_t accel, mag, gyro, temp;
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
 // and minimize distance between Arduino and first pixel.  Avoid connecting
 // on a live circuit...if you must, connect GND first.
 
+void setupSensor()
+{
+	// 1.) Set the accelerometer range
+	lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_2G);
+	//lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_4G);
+	//lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_6G);
+	//lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_8G);
+	//lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_16G);
+
+	// 2.) Set the magnetometer sensitivity
+	lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GAUSS);
+	//lsm.setupMag(lsm.LSM9DS0_MAGGAIN_4GAUSS);
+	//lsm.setupMag(lsm.LSM9DS0_MAGGAIN_8GAUSS);
+	//lsm.setupMag(lsm.LSM9DS0_MAGGAIN_12GAUSS);
+
+	// 3.) Setup the gyroscope
+	lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_245DPS);
+	//lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_500DPS);
+	//lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_2000DPS);
+}
+
 void setup() {
-  strip.begin();
-  strip.show(); // Initialize all pixels to 'off'
+	strip.begin();
+	strip.show(); // Initialize all pixels to 'off'
+
+	pinMode(PIN, OUTPUT);
+
+	if(!lsm.begin())
+	{
+		/* There was a problem detecting the LSM9DS0 ... check your connections */
+		Serial.print(F("Ooops, no LSM9DS0 detected ... Check your wiring!"));
+		digitalWrite(PIN, HIGH);
+		while(1);
+	}
 }
 
 void loop() {
@@ -31,8 +66,17 @@ void loop() {
   //theaterChase(strip.Color(127,   0,   0), 50); // Red
   //theaterChase(strip.Color(  0,   0, 127), 50); // Blue
 
-  rainbow(20);
-  rainbowCycle(20);
+  lsm.read();
+  lsm.getEvent(&accel, &mag, &gyro, &temp);
+
+  if (accel.acceleration.z > 1) {
+	  colorWipe(strip.Color(255, 0, 0), 50); // Red
+  } else {
+	  colorWipe(strip.Color(0, 255, 0), 50); // Green
+  }
+  
+  //rainbow(20);
+  //rainbowCycle(20);
   //theaterChaseRainbow(50);
 }
 
